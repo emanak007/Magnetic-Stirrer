@@ -110,7 +110,7 @@ void setup() {
   InitialiseOLED();
   InitialiseInputs();
   
-  overall_state = SETTINGS;
+  overall_state = IDLE;
 }
 
 void loop() {
