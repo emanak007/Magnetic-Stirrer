@@ -1,54 +1,79 @@
+/*
+  ======== User Inputs ========
+  Rotary Encoder on D2/D3
+  PTM Button on D4 (active LOW, INPUT_PULLUP)
+  Short press = state 1, Long press (1s hold) = state 2
+*/
 
-//pins D2 D3 for rotary encoder
-//pin for button set below
-RotaryEncoder encoder(2, 3, RotaryEncoder::LatchMode::FOUR3);
+RotaryEncoder encoder(PIN_ENCODER_A, PIN_ENCODER_B, RotaryEncoder::LatchMode::FOUR3);
 
-const int btnPin = 4;
-unsigned long btnPressTime = 0;  // Stopwatch start time
-bool isHolding = false;         
-const int holdDuration = 1000;   // 1000ms = 1 second
+unsigned long btn_press_time = 0;
+bool          is_holding     = false;
+const int     HOLD_DURATION  = 1000; // ms
 
 void InitialiseInputs() {
-  pinMode(btnPin, INPUT_PULLUP);
+  pinMode(PIN_BUTTON, INPUT_PULLUP);
 }
+
 int GetRotaryDir() {
-  encoder.tick(); 
-  int direction = (int)encoder.getDirection(); // Tells you 1 (CW) or -1 (CCW)
+  encoder.tick();
+  int direction = (int)encoder.getDirection(); // +1 CW, -1 CCW, 0 none
   return direction;
 }
 
 int GetButtonState() {
-  int btnState = digitalRead(btnPin);
-  static int lastBtnState = HIGH;
+  int btn_state = digitalRead(PIN_BUTTON);
+  static int last_btn_state = HIGH;
   int state = 0;
 
-  // button pressed
-  if (btnState == LOW && lastBtnState == HIGH) {
-    btnPressTime = millis();  // start time
-    isHolding = false;        // reset hold
+
+  if (btn_state == LOW && last_btn_state == HIGH) {
+    btn_press_time = millis();
+    is_holding = false;
   }
 
-  // long press
-  if (btnState == LOW) {
-  
-    if (millis() - btnPressTime >= holdDuration && !isHolding) {
-      //Serial.println("LONG PRESS DETECTED! ");
-      state = 2;
-      isHolding = true; 
+  // Button held down — check for long press
+  if (btn_state == LOW) {
+    if (millis() - btn_press_time >= HOLD_DURATION && !is_holding) {
+      state = 2; // long press
+      is_holding = true;
     }
   }
 
-  // button released
-  if (btnState == HIGH && lastBtnState == LOW) {
-    // if released early
-    if (millis() - btnPressTime < holdDuration) {
-      //Serial.println("SHORT CLICK DETECTED! (e.g., Select)");
-      state = 1;
+  // Button just released
+  if (btn_state == HIGH && last_btn_state == LOW) {
+    if (millis() - btn_press_time < HOLD_DURATION) {
+      state = 1; // short click
     }
-    btnPressTime = 0; // Reset stopwatch
+    btn_press_time = 0;
   }
 
-  lastBtnState = btnState;
+  last_btn_state = btn_state;
   return state;
 }
+
+Inputs GetInputs() {
+  Inputs values;
   
+
+  values.button_state = GetButtonState();
+  values.knob_dir     = GetRotaryDir();
+  values.clamp_angle = GetCurrentMotorAngle();
+
+
+  static unsigned long last_sensor_read = 0;
+  static float last_mass = 0.0;
+  static float last_temp = 0.0;
+
+  if (millis() - last_sensor_read >= 250) {
+    last_mass = GetMassGrams();     
+    last_temp = GetTemperature();    
+    last_sensor_read = millis();
+  }
+  
+
+  values.mass_g        = last_mass;
+  values.temperature_c = last_temp;
+
+  return values;
+}
