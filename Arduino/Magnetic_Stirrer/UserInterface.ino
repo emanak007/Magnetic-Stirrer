@@ -108,7 +108,6 @@ void DisplayMenuItem(int idx, int row) {
       u8g2.print(val_buf);
     }
   }
-  // Action items show no value — just the name
 }
 
 // ── Stirring screen (live temp + RPM) ──
@@ -122,7 +121,6 @@ void DisplayStirringScreen() {
   
   u8g2.firstPage();
   do {
-    // --- 1. TOP STATUS BAR ---
     u8g2.setFont(u8g2_font_ncenB08_tr);
     u8g2.setCursor(0, 10);
     if (overall_state == CLAMPING) {
@@ -134,30 +132,30 @@ void DisplayStirringScreen() {
     // Draw a nice horizontal line under the status
     u8g2.drawLine(0, 14, 256, 14); 
 
-    // --- 2. MAIN RPM DISPLAY (Big Font) ---
+    // RPM disp
     u8g2.setFont(u8g2_font_ncenB14_tr);
     u8g2.setCursor(0, 34);
     u8g2.print(settings.target_rpm);
     u8g2.print(F(" RPM"));
 
-    // --- 3. SENSOR TELEMETRY (Bottom Section) ---
+    // sensor disp
     u8g2.setFont(u8g2_font_ncenB08_tr);
     
-    // Column 1: Mass
+    //mass
     u8g2.setCursor(0, 52);
     u8g2.print(F("Mass: "));
     u8g2.print(inputs.mass_g, 1);
     u8g2.print(F(" g"));
 
-    // Column 2: Temperature (Shifted to the right)
+    //temp
     u8g2.setCursor(80, 52);
     u8g2.print(F("Temp: "));
     u8g2.print(inputs.temperature_c, 1);
-    // Print the little degree symbol manually
+    // degree symbol
     u8g2.print(F("\xb0")); 
     u8g2.print(F("C"));
 
-    // --- 4. TIMER ---
+    //timer
     u8g2.setCursor(0, 64);
     u8g2.print(F("Elapsed Time: "));
     u8g2.print(elapsed_s);
@@ -165,7 +163,6 @@ void DisplayStirringScreen() {
 
   } while (u8g2.nextPage()); 
 }
-// ── Stopping screen (Priority 5: show reason + "STOPPING...") ──
 void DisplayStoppingScreen() {
   u8g2.firstPage();
   do {

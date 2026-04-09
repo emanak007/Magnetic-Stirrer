@@ -1,31 +1,3 @@
-/*
-  ======== Magnetic Stirrer — Main File ========
-  Group 005, COMP0207 Introduction to Electronics, UCL
-  Jonah Wilson-Troy, Kaname Asaki, Adeel Imtiazi
-
-  Hardware:
-    - Arduino Uno R4 WiFi
-    - OLED: SSD1362 256x64 via SPI (CS=10, DC=9, RES=8, MOSI=11, SCK=13)
-    - Rotary Encoder: D2 (A), D3 (B)
-    - PTM Button: D4 (INPUT_PULLUP, active LOW)
-    - Stepper Motor (stirring magnet): EasyDriver on D5 (STEP), D6 (DIR)
-    - Status LED: D7
-    - LM35 Temperature Sensor: A0 (analogue, 10mV/C)
-    - Iris Clamp DC Motor: Motoron M3S550 via I2C (top SDA/SCL)
-    - Iris Clamp Encoder: A1 (Phase A), A3 (Phase B)
-    - Iris Clamp Homing Switch: TODO — Kaname to assign pin
-    - Load Cell (NAU7802 Qwiic Scale): Qwiic port (Wire1)
-    - Microphone: REMOVED — not provided by lab
-
-  Coding Guidelines:
-    - Non-blocking (no delay())
-    - Modular (each subsystem in its own .ino tab)
-    - snake_case for variables, PascalCase for functions
-    - Collapse-friendly comment indenting
-
-  ======== ======== ======== ======== ========
-*/
-
 #include <Wire.h>
 #include "SparkFun_Qwiic_Scale_NAU7802_Arduino_Library.h"
 #include <U8g2lib.h>
@@ -90,9 +62,6 @@
 //  Inputs (updated every loop cycle)
 // ──────────────────────────────────────────────
 Inputs inputs;
-// ──────────────────────────────────────────────
-//  Settings — matches Jonah's latest spec
-// ──────────────────────────────────────────────
 
   // Menu items: numeric settings, toggle settings, and action items
   enum MenuItem {
@@ -156,16 +125,16 @@ Inputs inputs;
     "START"
   };
 
-// ──────────────────────────────────────────────
+
 //  Stirring state tracking
-// ──────────────────────────────────────────────
+
   unsigned long stir_start_time    = 0;
   float         stir_start_mass    = 0;
   bool          clamp_engaged      = false;
 
-// ──────────────────────────────────────────────
+
 //  Implicit mode — load cell auto-detection
-// ──────────────────────────────────────────────
+
   const float    IMPLICIT_MASS_THRESHOLD  = 50.0;  // grams — beaker detected above this
   const float    IMPLICIT_MASS_HYSTERESIS = 20.0;  // grams — stop below (threshold - hysteresis)
   const unsigned long IMPLICIT_DEBOUNCE_MS = 500;  // sustained for this long before auto-start
@@ -174,26 +143,25 @@ Inputs inputs;
   bool          implicit_mass_detected    = false;
 
   bool waiting_for_beaker_removal = false;
-// ──────────────────────────────────────────────
+
 //  LED status (Priority 3)
-// ──────────────────────────────────────────────
+
   unsigned long led_last_toggle = 0;
   bool          led_state       = false;
 
-// ──────────────────────────────────────────────
+
 //  STOPPING state timing (Priority 5)
-// ──────────────────────────────────────────────
   unsigned long stopping_start_time = 0;
   const unsigned long STOP_REASON_DISPLAY_MS = 2000; // show reason for 2 seconds
 
-// ──────────────────────────────────────────────
+/
 //  Timing (non-blocking)
-// ──────────────────────────────────────────────
+
   unsigned long last_loop_time = 0;
 
-// ──────────────────────────────────────────────
+
 //  Settings helpers
-// ──────────────────────────────────────────────
+
 
   bool IsNumericItem(int idx) {
     return idx >= MENU_TARGET_RPM && idx <= MENU_CLAMP_DIAMETER;
@@ -297,9 +265,7 @@ Inputs inputs;
     }
   }
 
-// ──────────────────────────────────────────────
 //  EEPROM
-// ──────────────────────────────────────────────
 
   void LoadSettingsFromEEPROM() {
     if (EEPROM.read(EEPROM_ADDR_MAGIC) == EEPROM_MAGIC) {
@@ -324,9 +290,7 @@ Inputs inputs;
     Serial.println(F("[EEPROM] Settings saved."));
   }
 
-// ──────────────────────────────────────────────
 //  Update settings (input handling for SETTINGS state)
-// ──────────────────────────────────────────────
 
   void UpdateSettings() {
     int btn  = inputs.button_state;
@@ -387,9 +351,7 @@ Inputs inputs;
     }
   }
 
-// ──────────────────────────────────────────────
 //  LED Status Feedback (Priority 3)
-// ──────────────────────────────────────────────
 
 unsigned long error_flash_start  = 0;
   int           error_flash_count  = 0;
@@ -458,13 +420,7 @@ unsigned long error_flash_start  = 0;
     }
   }
 
-// ──────────────────────────────────────────────
-//  Stirring logic
-// ──────────────────────────────────────────────
 
-// ──────────────────────────────────────────────
-//  Updated StartStirring logic
-// ──────────────────────────────────────────────
 void StartStirring() {
   if (settings.target_rpm == 0) {
     Serial.println(F("[ERROR] RPM is 0."));
@@ -472,29 +428,28 @@ void StartStirring() {
     return;
   }
 
-  // Set the "Before" mass for mass-loss detection
+  // Set the original mass
   stir_start_mass = inputs.mass_g;
   stop_reason     = STOP_NONE;
 
-  // CLAMP LOGIC
+  //clamp logic
   if (settings.clamp_diameter_mm > 0 || settings.implicit_mode) {
       uint16_t target_mm = settings.clamp_diameter_mm;
       
-      // Implicit mode fallback
       if (settings.implicit_mode && target_mm == 0) {
           target_mm = DEFAULT_IMPLICIT_CLAMP_DIA;
       }
 
-      // This calls the Precision CAD Math we just wrote in the Motor Tab!
+      // clamp calculation
       SetClampTarget(target_mm); 
       clamp_engaged = true;
       
       // Go to CLAMPING first. Once IsClampFinished() is true, 
-      // the loop will transition us to STIRRING.
+      // the loop will transition to stirring
       overall_state = CLAMPING; 
       Serial.println(F("[STATE] -> CLAMPING"));
   } else {
-      // No clamp needed, jump straight to stirring
+      //no clamping required
       Serial.println(F("[STATE] Clamp OFF -> STIRRING"));
       stir_start_time = millis();
       BeginStirRamp(settings.target_rpm, settings.ramp_time_ms);
@@ -517,35 +472,34 @@ void StopStirring(StopReason reason) {
     overall_state = STOPPING;
     DisplayStoppingScreen(); 
 
-    // 2. Shut off the magnet
+    
     StopStepper();
 
-    // 3. Retract the clamp (This will block the code, but the screen is already updated!)
+
     if (clamp_engaged) {
       HomeClamp(); 
       clamp_engaged = false;
     }
 
-    // 4. Start the 2-second timer AFTER the clamp is fully open, 
-    // so the message doesn't instantly vanish.
+
     stopping_start_time = millis(); 
   }
   StopReason CheckStopConditions() {
-      // 1. Emergency/Manual Stops
+      // Emergency/Manual Stops
       if (inputs.button_state == 2) return STOP_EMERGENCY;
       if (inputs.button_state == 1) return STOP_BUTTON;
   
-      // 2. Temperature Limit
+      // Temperature Limit
       if (settings.stop_temp > 0) {
         if (inputs.temperature_c >= (float)settings.stop_temp) return STOP_TEMP;
       }
   
-      // 3. Time Limit
+      // Time Limit
       if (settings.stir_duration_ms > 0) {
         if (millis() - stir_start_time >= settings.stir_duration_ms) return STOP_DURATION;
       }
   
-      // 4. Mass Loss Logic (Stop when mass DECREASES to the target)
+      // Mass Loss Logic (Stop when mass DECREASES to the target)
       if (settings.stop_mass_g > 0) {
         // Only check if we actually started heavier than our goal
         if (stir_start_mass > (float)settings.stop_mass_g) {
@@ -553,7 +507,7 @@ void StopStirring(StopReason reason) {
         }
       }
   
-      // 5. Beaker Removed (Only enforced in AUTO/IMPLICIT mode)
+      // Beaker Removed (Only enforced in AUTO/IMPLICIT mode)
       if (settings.implicit_mode && inputs.mass_g < 5.0) return STOP_BEAKER_REMOVED;
   
       return STOP_NONE;
@@ -586,16 +540,13 @@ void StopStirring(StopReason reason) {
     DisplayStirringScreen();
   }
 
-// ──────────────────────────────────────────────
-//  Implicit mode — IDLE polling (Priority 2)
-// ──────────────────────────────────────────────
+
+//  Implicit mode 
 
   void ImplicitIdleCheck() {
     if (settings.target_rpm == 0) return;
 
-    if (inputs.mass_g >= IMPLICIT_MASS_THRESHOLD) {
-      // THE INTERLOCK: If the latch is engaged, do absolutely nothing.
-      if (waiting_for_beaker_removal) return;
+    if (inputs.mass_g >= IMPLICIT_MASS_THRESHOLD) {      if (waiting_for_beaker_removal) return;
 
       if (!implicit_mass_detected) {
         implicit_mass_above_since = millis();
@@ -606,7 +557,7 @@ void StopStirring(StopReason reason) {
         implicit_mass_detected = false;
       }
     } else {
-      // The mass dropped below the threshold! The beaker was lifted!
+      // The mass dropped below the threshold
       implicit_mass_detected = false;
       
       // Unlock the safety latch so the next beaker can start
@@ -616,19 +567,16 @@ void StopStirring(StopReason reason) {
       }
     }
   }
-// ──────────────────────────────────────────────
-//  Arduino setup & loop
-// ──────────────────────────────────────────────
 
   void setup() {
     Serial.begin(115200);
     Serial.println(F("=== Magnetic Stirrer v1.0 ==="));
     Serial.println(F("Group 005, COMP0207, UCL"));
 
-    // Load saved settings (or defaults on first boot)
+    //load saved settings (or defaults on first boot)
     LoadSettingsFromEEPROM();
 
-    // Initialise subsystems
+    //initialise subsystems
     InitialiseOLED();
     InitialiseInputs();
     InitialiseLoadCell();
@@ -645,7 +593,6 @@ void StopStirring(StopReason reason) {
     Serial.println(F("[STATE] -> IDLE"));
     Serial.print(F("  Mode: ")); Serial.println(settings.implicit_mode ? F("IMPLICIT") : F("EXPLICIT"));
 
-        // ===== TEMPORARY TEST CODE — REMOVE BEFORE FINAL =====
     //Serial.println(F("[TEST] Saving test settings to EEPROM..."));
     //settings.target_rpm = 500;
     //settings.stop_temp = 45;
@@ -654,7 +601,6 @@ void StopStirring(StopReason reason) {
     //Serial.print(F("[TEST] Saved RPM=")); Serial.println(settings.target_rpm);
     //Serial.print(F("[TEST] Saved stop_temp=")); Serial.println(settings.stop_temp);
     //Serial.print(F("[TEST] Saved implicit=")); Serial.println(settings.implicit_mode);
-    // ===== END TEMPORARY TEST CODE =====
   }
 
   void loop() {
@@ -668,12 +614,10 @@ void StopStirring(StopReason reason) {
       case IDLE:
         DisplayIdleScreen();
 
-        // Implicit mode: poll load cell for beaker detection
         if (settings.implicit_mode) {
           ImplicitIdleCheck();
         }
 
-        // Any input transitions to SETTINGS (explicit mode, or manual override in implicit)
         if (inputs.button_state == 1 || inputs.button_state == 2 || inputs.knob_dir != 0) {
           Serial.println(F("[STATE] IDLE -> SETTINGS"));
           overall_state = SETTINGS;
@@ -683,8 +627,6 @@ void StopStirring(StopReason reason) {
       case SETTINGS:
         UpdateSettings();
         DisplaySettingsScreen();
-        // Transition handled by ExecuteAction(MENU_START_STIRRING)
-        // or long press returns to IDLE (handled in UpdateSettings)
         break;
       case CLAMPING:
         DisplayStirringScreen(); // Show the UI
@@ -716,7 +658,7 @@ void StopStirring(StopReason reason) {
         }
         // -----------------------
 
-        UpdateStepperRamp(); // Give the motor all the CPU speed!
+        UpdateStepperRamp(); 
 
         stop_reason = CheckStopConditions();
         if (stop_reason != STOP_NONE) {
@@ -725,7 +667,7 @@ void StopStirring(StopReason reason) {
         break;
 
       case STOPPING:
-        // Show stop reason briefly, then return to IDLE
+        
         DisplayStoppingScreen();
         UpdateClampPID(); // continue clamp retraction if in progress
 

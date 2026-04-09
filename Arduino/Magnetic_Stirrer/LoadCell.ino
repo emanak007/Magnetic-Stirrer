@@ -19,7 +19,7 @@ void InitialiseLoadCell() {
 
 
 
-  loadSensor.setCalibrationFactor(1118.50); 
+  loadSensor.setCalibrationFactor(611.28); 
   
 
   loadSensor.calculateZeroOffset(); 

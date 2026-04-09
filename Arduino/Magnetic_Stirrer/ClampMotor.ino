@@ -22,7 +22,7 @@ long lastEncoderPosForStall = 0;
 unsigned long lastStallCheckTime = 0;
 
 // --- CONFIGURATION ---
-const float ENCODER_CPR = 291.0; 
+const float ENCODER_CPR = 292.5; 
 const float COUNTS_PER_DEGREE = ENCODER_CPR / 360.0;
 
 void InitialiseClampMotor() {
@@ -73,7 +73,7 @@ float getMotorAngleDegrees(float targetDiameter) {
   return ringAngle * gearRatio;
 }
 
-// --- MOTOR CONTROL ---
+// --motor controol--
 
 void SetClampTarget(uint16_t diameter_mm) {
   if (!clamp_homed) HomeClamp();
@@ -98,7 +98,7 @@ void UpdateClampPID() {
 
   long error = clamp_target_count - encoderPos;
   int tolerance = 15; // Tightened tolerance for better grip
-  int driveSpeed = 650; 
+  int driveSpeed = 700; 
 
   if (abs(error) <= tolerance) {
     SetClampMotorPower(0);
@@ -115,15 +115,13 @@ void UpdateClampPID() {
     if (abs(activeCommandedSpeed) >= 400 && pulsesMoved <= 3) {
       SetClampMotorPower(0);
       clamp_pid_active = false;
-      Serial.println(F("🚨 CLAMP CONTACT/STALL! 🚨"));
-      // The main loop will see clamp_pid_active is false and move to STIRRING
+      Serial.println(F("__CLAMP CONTACT/STALL!__"));
     }
     lastEncoderPosForStall = encoderPos;
     lastStallCheckTime = millis();
   }
 }
 
-// Fix: Now returns actual degrees for the UI to display
 float GetCurrentMotorAngle() {
   return (float)encoderPos / COUNTS_PER_DEGREE;
 }
@@ -144,7 +142,7 @@ void HomeClamp() {
     if (millis() - stallTimer > 500) {
       if (abs(encoderPos - lastPos) < 5) {
         SetClampMotorPower(0);
-        Serial.println(F("🚨 HOME STALL 🚨"));
+        Serial.println(F("__HOME STALL__"));
         return;
       }
       lastPos = encoderPos;
